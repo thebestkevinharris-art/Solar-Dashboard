@@ -58,14 +58,14 @@
 </header>
 
 <div class="container">
-    <iframe src="Project-Zero-Dashboard-1.htm"></iframe>
+    <iframe src="dashboard.png"></iframe>
     <div class="updated">
         Last updated: <span id="lastModified"></span>
     </div>
 </div>
 
 <script>
-    fetch('Project-Zero-Dashboard-1.htm', { method: 'HEAD' })
+    fetch('dashboard.png', { method: 'HEAD' })
         .then(response => {
             const lastModified = response.headers.get('Last-Modified');
             document.getElementById('lastModified').innerText = lastModified;
