@@ -1,75 +1,498 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Solar Performance Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="600">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Energy Dashboard — Solar vs Eskom</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2128;
+    --panel-2: #222b34;
+    --text: #e6edf3;
+    --muted: #8b96a3;
+    --solar: #8fe388;
+    --solar-glow: rgba(143, 227, 136, 0.35);
+    --eskom: #ffb454;
+    --eskom-glow: rgba(255, 180, 84, 0.35);
+    --inactive: #2d3640;
+    --border: #2a333d;
+  }
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f4f6f9;
-            margin: 0;
-        }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        header {
-            background-color: #1f2d3d;
-            padding: 20px;
-            color: white;
-        }
+  body {
+    background: radial-gradient(ellipse at top, #182028 0%, #0f1419 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px;
+    -webkit-font-smoothing: antialiased;
+  }
 
-        .logo {
-            max-height: 60px;
-            margin-bottom: 10px;
-        }
+  header {
+    max-width: 1200px;
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
 
-        .container {
-            padding: 20px;
-        }
+  header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
 
-        iframe {
-            width: 917px;
-            height: 602px;
-            border: none;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+  header .date {
+    color: var(--muted);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
 
-        .updated {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #555;
-        }
+  .grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
 
-        @media (max-width: 768px) {
-            iframe {
-                height: 65vh;
-            }
-        }
-    </style>
+  .card {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .card-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    opacity: 0.7;
+  }
+
+  .dial-wrap {
+    position: relative;
+    width: 280px;
+    height: 280px;
+  }
+
+  .dial-wrap svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .dial-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .dial-value {
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dial-value .pct {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .dial-label {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .stats {
+    margin-top: 20px;
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-val {
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-key {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .swatch.solar { background: var(--solar); }
+  .swatch.eskom { background: var(--eskom); }
+
+  .seg-solar  { fill: var(--solar); filter: drop-shadow(0 0 2px var(--solar-glow)); }
+  .seg-eskom  { fill: var(--eskom); filter: drop-shadow(0 0 2px var(--eskom-glow)); }
+  .seg-off    { fill: var(--inactive); }
+
+  footer {
+    max-width: 1200px;
+    margin: 28px auto 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    .dial-wrap { width: 240px; height: 240px; }
+    .dial-value { font-size: 44px; }
+  }
+</style>
 </head>
-
 <body>
 
 <header>
-    <img src="logo.png" class="logo" alt="Company Logo">
-    <h1>Solar Performance Dashboard</h1>
+  <h1>Energy Dashboard</h1>
+  <div style="display:flex; gap:14px; align-items:center;">
+    <button id="refresh-btn" type="button" style="font-size:13px; color:var(--text); cursor:pointer; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel); font-family:inherit;">Refresh now</button>
+    <label style="font-size:13px; color:var(--muted); cursor:pointer; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel);">
+      Load .xlsx…
+      <input id="file-input" type="file" accept=".xlsx,.xls" style="display:none" />
+    </label>
+    <div class="date" id="today-date"></div>
+  </div>
 </header>
 
-<div class="container">
-    <iframe src="dashboard.png"></iframe>
-    <div class="updated">
-        Last updated: <span id="lastModified"></span>
-    </div>
+<div id="status" style="max-width:1200px; margin:0 auto 14px; font-size:13px; color:var(--muted); min-height:18px;"></div>
+
+<div class="grid">
+  <div class="card" id="card-tl"></div>
+  <div class="card" id="card-tr"></div>
+  <div class="card" id="card-bl"></div>
+  <div class="card" id="card-br"></div>
 </div>
 
+<footer>
+  Solar Production vs Eskom Purchase &middot; 100 segments per dial &middot; 1 segment = 1%
+</footer>
+
 <script>
-    fetch('dashboard.png', { method: 'HEAD' })
-        .then(response => {
-            const lastModified = response.headers.get('Last-Modified');
-            document.getElementById('lastModified').innerText = lastModified;
-        });
+  // --- CONFIG: source spreadsheet on GitHub ---------------------------------
+  // Reads four specific cells from the "Dashboard" sheet of
+  // thebestkevinharris-art/Solar-Dashboard:
+  //   P7  -> Today's Solar Production
+  //   P9  -> Today's Eskom Purchase
+  //   P23 -> This Month's Solar Production
+  //   P27 -> This Month's Eskom Purchase
+  const CONFIG = {
+    sourceUrl: "https://raw.githubusercontent.com/thebestkevinharris-art/Solar-Dashboard/main/Project%20Zero%20Dashboard%201%20-%20Copy.xlsx",
+    sourceLabel: "Project Zero Dashboard 1 - Copy.xlsx (GitHub)",
+    sheetName: "Dashboard",
+    cells: {
+      todayProduction: "P7",
+      todayPurchase:   "P9",
+      monthProduction: "P23",
+      monthPurchase:   "P27"
+    }
+  };
+
+  // --- State -----------------------------------------------------------------
+  let lastValues = { todaySolarPct: 0, monthSolarPct: 0, todayKwh: {s:0,e:0}, monthKwh: {s:0,e:0} };
+
+  function buildDialDefs(v) {
+    return [
+      { id:"card-tl", title:"Today's Solar Production",      subtitle:"% of Production vs Purchase",
+        color:"solar", value:v.todaySolarPct,
+        stats:[ {key:"Solar", val:v.todayKwh.s.toFixed(2)+" kWh"}, {key:"Eskom", val:v.todayKwh.e.toFixed(2)+" kWh"} ] },
+      { id:"card-tr", title:"This Month's Solar Production", subtitle:"% of Production vs Purchase",
+        color:"solar", value:v.monthSolarPct,
+        stats:[ {key:"Solar", val:v.monthKwh.s.toFixed(2)+" kWh"}, {key:"Eskom", val:v.monthKwh.e.toFixed(2)+" kWh"} ] },
+      { id:"card-bl", title:"Today's Eskom Purchase",        subtitle:"% of Purchase vs Production",
+        color:"eskom", value:100 - v.todaySolarPct,
+        stats:[ {key:"Eskom", val:v.todayKwh.e.toFixed(2)+" kWh"}, {key:"Solar", val:v.todayKwh.s.toFixed(2)+" kWh"} ] },
+      { id:"card-br", title:"This Month's Eskom Purchase",   subtitle:"% of Purchase vs Production",
+        color:"eskom", value:100 - v.monthSolarPct,
+        stats:[ {key:"Eskom", val:v.monthKwh.e.toFixed(2)+" kWh"}, {key:"Solar", val:v.monthKwh.s.toFixed(2)+" kWh"} ] }
+    ];
+  }
+
+  // --- Dial renderer ---------------------------------------------------------
+  // 100 segments around a near-complete ring. Each segment = 1%.
+  function buildDial(value, color) {
+    const SEGMENTS   = 100;
+    const GAP_DEG    = 1.0;          // gap between segments (degrees)
+    const ARC_DEG    = 360;          // full ring
+    const SEG_DEG    = ARC_DEG / SEGMENTS;
+    const START_DEG  = -90;          // 12 o'clock
+    const CX = 140, CY = 140;
+    const R_OUTER = 130;
+    const R_INNER = 96;
+
+    const polar = (deg, r) => {
+      const rad = (deg - 90) * Math.PI / 180;   // SVG: 0deg at 3 o'clock
+      return [CX + r * Math.cos(rad), CY + r * Math.sin(rad)];
+    };
+
+    // Build a single-segment path (annular sector).
+    function segPath(startDeg, endDeg) {
+      const [x1o, y1o] = polar(startDeg, R_OUTER);
+      const [x2o, y2o] = polar(endDeg,   R_OUTER);
+      const [x1i, y1i] = polar(endDeg,   R_INNER);
+      const [x2i, y2i] = polar(startDeg, R_INNER);
+      const large = (endDeg - startDeg) > 180 ? 1 : 0;
+      return [
+        `M ${x1o.toFixed(2)} ${y1o.toFixed(2)}`,
+        `A ${R_OUTER} ${R_OUTER} 0 ${large} 1 ${x2o.toFixed(2)} ${y2o.toFixed(2)}`,
+        `L ${x1i.toFixed(2)} ${y1i.toFixed(2)}`,
+        `A ${R_INNER} ${R_INNER} 0 ${large} 0 ${x2i.toFixed(2)} ${y2i.toFixed(2)}`,
+        "Z"
+      ].join(" ");
+    }
+
+    let svg = `<svg viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dial showing ${value}%">`;
+    for (let i = 0; i < SEGMENTS; i++) {
+      // Add START_DEG offset so segment 0 starts at top (subtract because we used -90 above)
+      const s = (i * SEG_DEG) + (GAP_DEG / 2) + (START_DEG + 90);
+      const e = ((i + 1) * SEG_DEG) - (GAP_DEG / 2) + (START_DEG + 90);
+      const cls = i < value ? `seg-${color}` : "seg-off";
+      svg += `<path class="${cls}" d="${segPath(s, e)}"/>`;
+    }
+    svg += `</svg>`;
+    return svg;
+  }
+
+  function renderCard(d) {
+    const el = document.getElementById(d.id);
+    el.innerHTML = `
+      <div class="card-title">${d.title}</div>
+      <div class="card-subtitle">${d.subtitle}</div>
+      <div class="dial-wrap">
+        ${buildDial(d.value, d.color)}
+        <div class="dial-center">
+          <div class="dial-value">${d.value}<span class="pct">%</span></div>
+          <div class="dial-label">
+            <span class="swatch ${d.color}"></span>${d.color === "solar" ? "Solar share" : "Eskom share"}
+          </div>
+        </div>
+      </div>
+      <div class="stats">
+        ${d.stats.map(s => `
+          <div class="stat">
+            <div class="stat-val">${s.val}</div>
+            <div class="stat-key">${s.key}</div>
+          </div>`).join("")}
+      </div>
+    `;
+  }
+
+  function renderAll() {
+    buildDialDefs(lastValues).forEach(renderCard);
+  }
+
+  // --- Spreadsheet loading ---------------------------------------------------
+  function setStatus(msg, isErr) {
+    const el = document.getElementById("status");
+    el.textContent = msg || "";
+    el.style.color = isErr ? "#ff8a8a" : "var(--muted)";
+  }
+
+  function readCell(ws, addr) {
+    const cell = ws[addr];
+    if (!cell) return 0;
+    const v = (cell.v !== undefined) ? cell.v : cell.w;
+    const n = Number(v);
+    return isFinite(n) ? n : 0;
+  }
+
+  function extract(workbook) {
+    const sheetName = CONFIG.sheetName && workbook.SheetNames.includes(CONFIG.sheetName)
+                    ? CONFIG.sheetName : workbook.SheetNames[0];
+    const ws = workbook.Sheets[sheetName];
+    if (!ws) throw new Error(`Sheet "${sheetName}" not found`);
+
+    const todayS = readCell(ws, CONFIG.cells.todayProduction);
+    const todayE = readCell(ws, CONFIG.cells.todayPurchase);
+    const monthS = readCell(ws, CONFIG.cells.monthProduction);
+    const monthE = readCell(ws, CONFIG.cells.monthPurchase);
+
+    const pct = (a, b) => (a + b) > 0 ? Math.round((a / (a + b)) * 100) : 0;
+    return {
+      todaySolarPct: pct(todayS, todayE),
+      monthSolarPct: pct(monthS, monthE),
+      todayKwh:  { s: todayS, e: todayE },
+      monthKwh:  { s: monthS, e: monthE },
+      sheetName
+    };
+  }
+
+  async function loadFromUrl(url) {
+    setStatus(`Loading from GitHub…`);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = await res.arrayBuffer();
+    return XLSX.read(buf, { type: "array", cellDates: true });
+  }
+
+  function loadFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload  = () => { try { resolve(XLSX.read(fr.result, { type: "array", cellDates: true })); } catch (e) { reject(e); } };
+      fr.onerror = () => reject(fr.error);
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  function handleWorkbook(wb, sourceLabel) {
+    try {
+      const v = extract(wb);
+      lastValues = v;
+      renderAll();
+      const c = CONFIG.cells;
+      setStatus(
+        `Loaded ${sourceLabel} · sheet "${v.sheetName}" · ` +
+        `${c.todayProduction}=${v.todayKwh.s.toFixed(2)}, ${c.todayPurchase}=${v.todayKwh.e.toFixed(2)}, ` +
+        `${c.monthProduction}=${v.monthKwh.s.toFixed(2)}, ${c.monthPurchase}=${v.monthKwh.e.toFixed(2)}`
+      );
+    } catch (err) {
+      setStatus("Error: " + err.message, true);
+      console.error(err);
+    }
+  }
+
+  // --- Boot ------------------------------------------------------------------
+  renderAll();
+
+  let lastFetchAt = null;
+  let nextRefreshAt = null;
+  let refreshTimer = null;
+
+  function fmtClock(d) {
+    return d.toLocaleString(undefined, {
+      weekday: "short", hour: "2-digit", minute: "2-digit"
+    });
+  }
+
+  function pushStatus(extra) {
+    // Append last-fetched / next-refresh info to whatever the loader set.
+    const el = document.getElementById("status");
+    const base = el.dataset.base || el.textContent || "";
+    el.dataset.base = base;
+    const bits = [];
+    if (lastFetchAt)   bits.push(`last update ${fmtClock(lastFetchAt)}`);
+    if (nextRefreshAt) bits.push(`next auto-refresh ${fmtClock(nextRefreshAt)}`);
+    el.textContent = base + (bits.length ? `  ·  ${bits.join(" · ")}` : "") + (extra ? `  ·  ${extra}` : "");
+  }
+
+  async function refreshFromGitHub(reason) {
+    setStatus(`Loading from GitHub…`);
+    try {
+      const wb = await loadFromUrl(CONFIG.sourceUrl);
+      handleWorkbook(wb, CONFIG.sourceLabel);
+      lastFetchAt = new Date();
+    } catch (err) {
+      setStatus(`Could not load from GitHub (${err.message}). Use "Load .xlsx…" to pick a file.`, true);
+    }
+    // Save the loader's status as the base so we can append meta info to it.
+    const el = document.getElementById("status");
+    el.dataset.base = el.textContent;
+    pushStatus(reason ? `(${reason})` : null);
+  }
+
+  // Schedule the next refresh at 02:00 local time.
+  function scheduleDailyRefresh() {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    const now  = new Date();
+    const next = new Date(now);
+    next.setHours(2, 0, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    nextRefreshAt = next;
+    let delay = next - now;
+    // setTimeout max ~24.8 days; we're well under that, but cap defensively.
+    if (delay > 0x7fffffff) delay = 0x7fffffff;
+    refreshTimer = setTimeout(async () => {
+      await refreshFromGitHub("scheduled 2 AM refresh");
+      scheduleDailyRefresh();
+    }, delay);
+    pushStatus();
+  }
+
+  // Initial load + schedule.
+  refreshFromGitHub().then(scheduleDailyRefresh);
+
+  // Manual refresh button.
+  document.getElementById("refresh-btn").addEventListener("click", () => {
+    refreshFromGitHub("manual refresh");
+  });
+
+  // Catch up if the tab was asleep through 2 AM.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible"
+        && nextRefreshAt
+        && new Date() >= nextRefreshAt) {
+      refreshFromGitHub("catching up after sleep").then(scheduleDailyRefresh);
+    }
+  });
+
+  document.getElementById("file-input").addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try {
+      const wb = await loadFromFile(f);
+      handleWorkbook(wb, f.name);
+    } catch (err) {
+      setStatus("Error reading file: " + err.message, true);
+    }
+  });
+
+  // Header date (updates at midnight if tab stays open through it).
+  function paintHeaderDate() {
+    const dt = new Date();
+    document.getElementById("today-date").textContent =
+      dt.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  }
+  paintHeaderDate();
+  // Re-paint once a minute is cheap and keeps the header current.
+  setInterval(paintHeaderDate, 60 * 1000);
 </script>
 
 </body>
