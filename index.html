@@ -35,16 +35,35 @@
     max-width: 1200px;
     margin: 0 auto 28px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
+  }
+
+  header .title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  header .logo {
+    height: 48px;
+    width: auto;
+    display: block;
   }
 
   header h1 {
     font-size: 22px;
     font-weight: 600;
     letter-spacing: 0.3px;
+  }
+
+  header .controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   header .date {
@@ -192,8 +211,11 @@
 <body>
 
 <header>
-  <h1>Energy Dashboard</h1>
-  <div style="display:flex; gap:14px; align-items:center;">
+  <div class="title">
+    <img src="logo.png" alt="Logo" class="logo" />
+    <h1>Energy Dashboard</h1>
+  </div>
+  <div class="controls">
     <button id="refresh-btn" type="button" style="font-size:13px; color:var(--text); cursor:pointer; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel); font-family:inherit;">Refresh now</button>
     <label style="font-size:13px; color:var(--muted); cursor:pointer; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel);">
       Load .xlsx…
@@ -239,16 +261,16 @@
     return [
       { id:"card-tl", title:"Today's Solar Production",      subtitle:"% of Production vs Purchase",
         color:"solar", value:v.todaySolarPct,
-        stats:[ {key:"Solar", val:v.todayKwh.s.toFixed(2)+" kWh"}, {key:"Eskom", val:v.todayKwh.e.toFixed(2)+" kWh"} ] },
+        stats:[ {key:"Solar", val:v.todayKwh.s.toFixed(2)+" kWh"} ] },
       { id:"card-tr", title:"This Month's Solar Production", subtitle:"% of Production vs Purchase",
         color:"solar", value:v.monthSolarPct,
-        stats:[ {key:"Solar", val:v.monthKwh.s.toFixed(2)+" kWh"}, {key:"Eskom", val:v.monthKwh.e.toFixed(2)+" kWh"} ] },
+        stats:[ {key:"Solar", val:v.monthKwh.s.toFixed(2)+" kWh"} ] },
       { id:"card-bl", title:"Today's Eskom Purchase",        subtitle:"% of Purchase vs Production",
         color:"eskom", value:100 - v.todaySolarPct,
-        stats:[ {key:"Eskom", val:v.todayKwh.e.toFixed(2)+" kWh"}, {key:"Solar", val:v.todayKwh.s.toFixed(2)+" kWh"} ] },
+        stats:[ {key:"Eskom", val:v.todayKwh.e.toFixed(2)+" kWh"} ] },
       { id:"card-br", title:"This Month's Eskom Purchase",   subtitle:"% of Purchase vs Production",
         color:"eskom", value:100 - v.monthSolarPct,
-        stats:[ {key:"Eskom", val:v.monthKwh.e.toFixed(2)+" kWh"}, {key:"Solar", val:v.monthKwh.s.toFixed(2)+" kWh"} ] }
+        stats:[ {key:"Eskom", val:v.monthKwh.e.toFixed(2)+" kWh"} ] }
     ];
   }
 
@@ -301,7 +323,6 @@
     const el = document.getElementById(d.id);
     el.innerHTML = `
       <div class="card-title">${d.title}</div>
-      <div class="card-subtitle">${d.subtitle}</div>
       <div class="dial-wrap">
         ${buildDial(d.value, d.color)}
         <div class="dial-center">
