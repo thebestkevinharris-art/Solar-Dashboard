@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Solar Performance Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="600">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f6f9;
+            margin: 0;
+        }
+
+        header {
+            background-color: #1f2d3d;
+            padding: 20px;
+            color: white;
+        }
+
+        .logo {
+            max-height: 60px;
+            margin-bottom: 10px;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        iframe {
+            width: 917px;
+            height: 602px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .updated {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        @media (max-width: 768px) {
+            iframe {
+                height: 65vh;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <img src="logo.png" class="logo" alt="Company Logo">
+    <h1>Solar Performance Dashboard</h1>
+</header>
+
+<div class="container">
+    <iframe src="dashboard.png"></iframe>
+    <div class="updated">
+        Last updated: <span id="lastModified"></span>
+    </div>
+</div>
+
+<script>
+    fetch('dashboard.png', { method: 'HEAD' })
+        .then(response => {
+            const lastModified = response.headers.get('Last-Modified');
+            document.getElementById('lastModified').innerText = lastModified;
+        });
+</script>
+
+</body>
+</html>
